@@ -33,17 +33,21 @@ MonoNode::~MonoNode () {
 
 
 void MonoNode::ImageCallback (const sensor_msgs::ImageConstPtr& msg) {
-  cv_bridge::CvImageConstPtr cv_in_ptr;
-  try {
-      cv_in_ptr = cv_bridge::toCvShare(msg);
-  } catch (cv_bridge::Exception& e) {
-      ROS_ERROR("cv_bridge exception: %s", e.what());
-      return;
+  static int i = 1;
+  if (i++ % 3 ==0){
+    i = 1;
+    cv_bridge::CvImageConstPtr cv_in_ptr;
+    try {
+        cv_in_ptr = cv_bridge::toCvShare(msg);
+    } catch (cv_bridge::Exception& e) {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    current_frame_time_ = msg->header.stamp;
+
+    orb_slam_->TrackMonocular(cv_in_ptr->image,cv_in_ptr->header.stamp.toSec());
+
+    Update ();
   }
-
-  current_frame_time_ = msg->header.stamp;
-
-  orb_slam_->TrackMonocular(cv_in_ptr->image,cv_in_ptr->header.stamp.toSec());
-
-  Update ();
 }

@@ -10,6 +10,7 @@ Node::Node (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &node_handle, ima
   //static parameters
   node_handle_.param(name_of_node_+ "/publish_pointcloud", publish_pointcloud_param_, true);
   node_handle_.param(name_of_node_+ "/publish_pose", publish_pose_param_, true);
+  node_handle_.param(name_of_node_+ "/publish_keypose", publish_keypose_param_, true);
   node_handle_.param<std::string>(name_of_node_+ "/pointcloud_frame_id", map_frame_id_param_, "map");
   node_handle_.param<std::string>(name_of_node_+ "/camera_frame_id", camera_frame_id_param_, "camera_link");
   node_handle_.param<std::string>(name_of_node_ + "/map_file", map_file_name_param_, "map.bin");
@@ -35,7 +36,9 @@ Node::Node (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &node_handle, ima
   if (publish_pose_param_) {
     pose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped> (name_of_node_+"/pose", 1);
   }
-
+  if (publish_keypose_param_) {
+    keypose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped> (name_of_node_+"/keypose", 1);
+  }
 }
 
 
@@ -67,6 +70,11 @@ void Node::Update () {
     PublishMapPoints (orb_slam_->GetAllMapPoints());
   }
 
+  bool is_key_pose = orb_slam_->IsCurrentKeyFrame();
+  if (publish_keypose_param_ && is_key_pose){
+    PublishPositionAsKeyPoseStamped(position);
+  }
+
 }
 
 
@@ -88,6 +96,14 @@ void Node::PublishPositionAsPoseStamped (cv::Mat position) {
   geometry_msgs::PoseStamped pose_msg;
   tf::poseStampedTFToMsg (grasp_tf_pose, pose_msg);
   pose_publisher_.publish(pose_msg);
+}
+
+void Node::PublishPositionAsKeyPoseStamped (cv::Mat position) {
+  tf::Transform grasp_tf = TransformFromMat (position);
+  tf::Stamped<tf::Pose> grasp_tf_pose(grasp_tf, current_frame_time_, map_frame_id_param_);
+  geometry_msgs::PoseStamped pose_msg;
+  tf::poseStampedTFToMsg (grasp_tf_pose, pose_msg);
+  keypose_publisher_.publish(pose_msg);
 }
 
 
@@ -136,8 +152,10 @@ tf::Transform Node::TransformFromMat (cv::Mat position_mat) {
 
 
 sensor_msgs::PointCloud2 Node::MapPointsToPointCloud (std::vector<ORB_SLAM2::MapPoint*> map_points) {
-  if (map_points.size() == 0) {
+  static int i = 1;
+  if (map_points.size() == 0 && ++i % 20 ==0) {
     std::cout << "Map point vector is empty!" << std::endl;
+    i = 1;
   }
 
   sensor_msgs::PointCloud2 cloud;

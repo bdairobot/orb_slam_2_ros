@@ -116,6 +116,7 @@ public:
     void SetMinimumKeyFrames (int min_num_kf);
 
     bool SaveMap(const string &filename);
+    bool IsCurrentKeyFrame();
 
     cv::Mat GetCurrentPosition ();
 

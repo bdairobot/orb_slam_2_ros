@@ -471,6 +471,10 @@ cv::Mat System::GetCurrentPosition () {
   return current_position_;
 }
 
+bool System::IsCurrentKeyFrame() {
+    return mpTracker->currentIsKeyFrame;
+}
+
 int System::GetTrackingState()
 {
     unique_lock<mutex> lock(mMutexState);
